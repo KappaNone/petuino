@@ -1,6 +1,6 @@
 # 🐾 Petuino Project. 
 
-**Petuino** is a digital pet built with Arduino. Feed it, play with it, dress it up and take care of it as it grows over time. Petuino combines electronics, creativity and fun in one interactive project. It is perfect for lonely people.
+**Petuino** is a digital pet built with Arduino. Feed it, play with it and take care of it as it grows over time. Petuino combines electronics, creativity and fun in one interactive project. It is perfect for lonely people.
 
 ---
 
@@ -14,9 +14,6 @@
 
 - 📊 **Stats Tracking**  
   Keep track of your pet’s **name**, **age** and just track current mood.
-
-- 🧢 **Customization**  
-  Change your pet’s appearance with different outfits.
 
 - 😴 **Sleep Mode**  
   Your pet can sleep after long playing!
