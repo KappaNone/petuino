@@ -1,5 +1,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Servo.h>
 
 #include <EEPROM.h>
 
@@ -22,9 +23,11 @@
 #define LEFT 4
 #define SELECT 8
 #define RIGHT 2
+#define SERVO 10
 
 // Create display instance
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT);
+Servo myservo;
 
 void setup() {
 
@@ -42,7 +45,7 @@ void setup() {
   display.display();
 
   delay(100);
-
+  myservo.attach(SERVO);
   pinMode(SWITCH_SCREEN, INPUT_PULLUP);
   pinMode(LEFT, INPUT_PULLUP);
   pinMode(SELECT, INPUT_PULLUP);
@@ -110,13 +113,24 @@ void loop() {
     turnOff();
   }
   else{
-
     stateSelection();
     delay(10);
   }
   
 }
 
+void wiggleTail() {
+  int pos;
+  for (pos = 0; pos <= 180; pos += 1) {
+    myservo.write(pos);
+    delay(2);
+  }
+  for (pos = 180; pos >= 0; pos -= 1) {
+    myservo.write(pos);
+    delay(2);
+  }
+}
+ 
 void stateSelection() {
   if(state == 0){
     homeFunc();
@@ -449,7 +463,7 @@ void displayPlay(){
   delay(500);
 
   changeState("Home");
-  
+  wiggleTail();
 }
 
 // DISPLAY AGE
