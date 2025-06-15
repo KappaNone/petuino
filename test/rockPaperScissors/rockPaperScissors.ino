@@ -1,127 +1,170 @@
+#include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <stdlib.h>
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define BUTTON_PIN 4
-#define BUZZER_PIN 3
+
+#define LEFT 4
+#define RIGHT 2
+#define SELECT 8
+
+#define ROCK 1
+#define PAPER 2
+#define SCISSOR 3
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// Game variables
-int gameState = 0; // 0=waiting, 1=player chose, 2=show result
-int playerChoice = 0; // 0=none, 1=rock, 2=paper, 3=scissors
-int petChoice = 0;
-unsigned long gameStartTime;
-
-void setup() {
+void setup()
+{
   Serial.begin(115200);
-  pinMode(BUTTON_PIN, INPUT);
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+
+  pinMode(LEFT, INPUT);
+  pinMode(RIGHT, INPUT);
+  pinMode(SELECT, INPUT);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  {
     Serial.println(F("SSD1306 allocation failed"));
-    for (;;);
+    for(;;);
   }
+
   display.clearDisplay();
   display.display();
-  
-  randomSeed(analogRead(0)); // Seed random number generator
+
+  Serial.print("Starting game.");
 }
 
-void loop() {
-  int buttonState = digitalRead(BUTTON_PIN);
-  
-  if (gameState == 0) {
-    // Waiting for player to press button
-    display.clearDisplay();
-    display.setTextSize(2);
-    display.setCursor(10, 10);
-    display.println("Press Button");
-    display.setTextSize(1);
-    display.setCursor(10, 40);
-    display.println("to play RPS!");
-    
-    if (buttonState == HIGH) {
-      gameState = 1;
-      playerChoice = 0;
-      gameStartTime = millis();
-      tone(BUZZER_PIN, 523, 200); // Play a tone
-    }
-  } 
-  else if (gameState == 1) {
-    // Player choosing
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(10, 5);
-    display.println("Quick! Choose:");
-    
-    display.setCursor(20, 25);
-    display.println("Hold: Rock");
-    display.setCursor(20, 35);
-    display.println("Release: Paper");
-    display.setCursor(20, 45);
-    display.println("Wait: Scissors");
-    
-    if (buttonState == HIGH) {
-      playerChoice = 1; // Rock (button held)
-    } 
-    else if (millis() - gameStartTime < 2000) {
-      playerChoice = 2; // Paper (released quickly)
-    } 
-    else {
-      playerChoice = 3; // Scissors (waited too long)
-    }
-    
-    if (playerChoice != 0 && millis() - gameStartTime > 500) {
-      petChoice = random(1, 4); // Pet chooses randomly
-      gameState = 2;
-      gameStartTime = millis();
-    }
-  } 
-  else if (gameState == 2) {
-    // Show result
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(10, 5);
-    display.print("You: ");
-    display.println(getChoiceName(playerChoice));
-    display.setCursor(10, 20);
-    display.print("Pet: ");
-    display.println(getChoiceName(petChoice));
-    
-    display.setTextSize(2);
-    display.setCursor(10, 40);
-    
-    // Determine winner
-    if (playerChoice == petChoice) {
-      display.println("Tie!");
-      tone(BUZZER_PIN, 392, 300);
-    } 
-    else if ((playerChoice == 1 && petChoice == 3) || 
-             (playerChoice == 2 && petChoice == 1) || 
-             (playerChoice == 3 && petChoice == 2)) {
-      display.println("You Win!");
-      tone(BUZZER_PIN, 659, 500);
-    } 
-    else {
-      display.println("You Lose!");
-      tone(BUZZER_PIN, 262, 700);
-    }
-    
-    if (millis() - gameStartTime > 3000) {
-      gameState = 0;
-    }
+void loop()
+{
+  int gameMode = selectGameMode();
+
+  int p1 = selectMove(1);
+  int p2 = (gameMode == 1) ? askAI() : selectMove(2);
+
+  bool winner = checkWin(p1, p2);
+
+  if (winner) {
+    delay(5000);
+    // restart game after delay
   }
-  
-  display.display();
-  delay(50);
 }
 
-String getChoiceName(int choice) {
-  switch (choice) {
-    case 1: return "Rock";
-    case 2: return "Paper";
-    case 3: return "Scissors";
-    default: return "";
+void displayOLED(int textSize, int setX, int setY, char str[20]) {
+    display.setFont(NULL);
+    display.setTextSize(textSize);
+    display.setTextColor(WHITE);
+    display.setCursor(setX, setY);
+    display.print(str);
+    display.display();
+}
+
+void drawCircles()
+{
+  for(int16_t i = 5; i < 90; i += 5) {
+    display.drawCircle(63,31,i,WHITE);
+    display.display();
+    delay(10);
+    display.clearDisplay();
   }
 }
+
+int askAI()
+{
+  int aiMove = (rand()%3) + 1;
+  Serial.print("AI chose ");
+  Serial.println(aiMove);
+  return aiMove;
+}
+
+int selectGameMode()
+{
+  display.clearDisplay();
+  displayOLED(1, 20, 20, "1. Single Player.");
+  displayOLED(1, 20, 30, "2. Two Players.");
+  delay(1000);
+  
+  int mode = readButt();
+  Serial.print("Selected game mode ");
+  Serial.println(mode);
+  
+  return mode;
+}
+
+int readButt()
+{
+  int val = 0;
+
+  while(1) {
+    if (digitalRead(RIGHT)==HIGH) { val = 1; break; }
+    if (digitalRead(LEFT)==HIGH) { val = 2; break; }
+    if (digitalRead(SELECT)==HIGH) { val = 3; break; }
+  }
+  Serial.print("returning ");
+  Serial.println(val);
+  delay(500);
+  return val;
+}
+
+int selectMove(int player)
+{
+  display.clearDisplay();
+  char str[20];
+  snprintf(str, sizeof(str), "Player %d move!", player);
+  displayOLED(1, 20, 20, str);
+  displayOLED(1, 20, 30, "Left: Rock | Right: Paper | Select: Scissors");
+
+  int move = 0;
+
+  while (move == 0) {
+    if (digitalRead(LEFT) == HIGH) {
+      move = ROCK;
+      Serial.print("Player chose ");
+      Serial.println("ROCK");
+
+    } else if (digitalRead(RIGHT) == HIGH) {
+      move = PAPER;
+      Serial.print("Player chose ");
+      Serial.println("PAPER");
+
+    } else if (digitalRead(SELECT) == HIGH) {
+      move = SCISSOR;
+      Serial.print("Player chose ");
+      Serial.println("SCISSOR");
+
+    }
+    delay(100);
+  }
+
+  delay(500);
+  return move;
+}
+
+bool checkWin(int p1, int p2)
+{
+  bool winner = false;
+
+  display.clearDisplay();
+
+  if (p1 == p2) {
+    displayOLED(1, 20, 20, "Tie!");
+  }
+  else if((p1 == ROCK && p2 == SCISSOR) ||
+          (p1 == SCISSOR && p2 == PAPER) ||
+          (p1 == PAPER && p2 == ROCK)) {
+    displayOLED(1, 20, 20, "Player 1 Wins!");
+    winner = true;
+  } else {
+    displayOLED(1, 20, 20, "Player 2 Wins!");
+    winner = true;
+  }
+
+  Serial.print("Winner ");
+  Serial.println(winner ? "TRUE" : "FALSE");
+
+  delay(5000);
+  return winner;
+}
+
