@@ -108,7 +108,23 @@ bool pressed = false;
 int frameCount = 0;
 int spriteOffset = -1;
 
+
+int sensorValue = 0;
+
+int minVal = 1023;
+int maxVal = 0;
+int normalizedValue = 0;
 void loop() {
+  sensorValue = analogRead(A0);
+
+  if (sensorValue < minVal) {
+    minVal = sensorValue;
+  }
+  if (sensorValue > maxVal) {
+    maxVal = sensorValue;
+  }
+
+  normalizedValue = map(sensorValue, minVal, maxVal, 0, 100);
   if (digitalRead(SWITCH_SCREEN) == HIGH){
     turnOff();
   }
@@ -305,7 +321,11 @@ void displayAll(){
     // display.drawBitmap(10, 18, feet_bg, 32, 46, SSD1306_BLACK);
     // display.drawBitmap(10, 18, feet, 32, 46, SSD1306_WHITE);
 
-    display.drawBitmap(10, 28 + spriteOffset, head, 32, 46, SSD1306_WHITE);
+    if (normalizedValue > 50) {
+      display.drawBitmap(10, 28 + spriteOffset, head, 32, 46, SSD1306_WHITE);
+    } else {
+      display.drawBitmap(10, 28 + spriteOffset, head_night, 32, 46, SSD1306_WHITE);
+    }
       
     display.display();
     if(spriteOffset == -1){
@@ -339,7 +359,6 @@ void displaySleep(){
     frameCount = 0;
   }
   frameCount++;
-    
 }
 
 // EAT ANIMATION
