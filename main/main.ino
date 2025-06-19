@@ -109,11 +109,13 @@ int frameCount = 0;
 int spriteOffset = -1;
 
 
+// LIGHT SENSOR
 int sensorValue = 0;
 
 int minVal = 1023;
 int maxVal = 0;
 int normalizedValue = 0;
+
 void loop() {
   sensorValue = analogRead(A0);
 
@@ -176,7 +178,7 @@ void changeState(char section[20]){
     petuino.updateHappiness(4);
     petuino.updateSleep(-2);
     petuino.updateHunger(-2);
-    displayPlay();    
+    playGame();    
   }else if(strcmp(section, "Stats") == 0){
     displayAge();
     state = 2;
@@ -438,51 +440,100 @@ void displayEat(){
   
 }
 
-// PLAY ANIMATION
 
-void displayPlay(){
-  int startX = 50;
-  int startY = 17;
-  int loop = 2;
-  
-  for (int i = 0; i <= loop; i++) {
-    // Frame 1
-    display.fillRect(0, 16, 128, 48, SSD1306_BLACK); // Clear screen 
-    display.drawBitmap(startX, startY, play_anim_1, 27, 48, SSD1306_WHITE);
-    display.display(); 
-    delay(200);
+void playGame() {
 
-    // Frame 2
-    display.fillRect(0, 16, 128, 48, SSD1306_BLACK);
-    display.drawBitmap(startX, startY, play_anim_2, 27, 48, SSD1306_WHITE);
+  bool isJumping = false;
+  bool gameOver = false;
+  int petY = 40;
+  int velocity = 0;
+  const int gravity = 2;
+  const int groundY = 40;
+  int obstacleX1 = 128;
+  int obstacleX2 = 180;
+  int gameSpeed = 3;
+  unsigned long lastSpeedIncrease = millis();
+  unsigned long lastFrame = 0;
+  unsigned long score = 0;
+  bool buttonPressed = false;
+
+  while (!gameOver) {
+    unsigned long currentTime = millis();
+    if (currentTime - lastFrame < 50) continue;
+    lastFrame = currentTime;
+
+    int buttonState = digitalRead(SELECT);
+
+    if (buttonState == HIGH && !buttonPressed && petY == groundY) {
+      buttonPressed = true;
+      isJumping = true;
+      velocity = -13;
+    }
+    if (buttonState == LOW) {
+      buttonPressed = false;
+    }
+
+    // --- Физика
+    if (isJumping) {
+      petY += velocity;
+      velocity += gravity;
+      if (petY >= groundY) {
+        petY = groundY;
+        isJumping = false;
+      }
+    }
+
+    obstacleX1 -= gameSpeed;
+    obstacleX2 -= gameSpeed;
+
+    if (obstacleX1 < -10) {
+      obstacleX1 = 128 + random(0, 40);
+      if (random(0, 10) > 6) obstacleX2 = obstacleX1 + random(15, 30);
+    }
+    if (obstacleX2 < -10) {
+      obstacleX2 = 128 + random(30, 60);
+    }
+
+    if (currentTime - lastSpeedIncrease > 3000) {
+      gameSpeed++;
+      lastSpeedIncrease = currentTime;
+    }
+
+    score++;
+
+    display.clearDisplay();
+    display.fillRect(10, petY + 5, 10, 10, SSD1306_WHITE);
+    display.fillRect(obstacleX1, groundY, 10, 15, SSD1306_WHITE);
+    display.fillRect(obstacleX2, groundY, 10, 15, SSD1306_WHITE);
+    display.drawLine(0, 58, 128, 58, SSD1306_WHITE);               
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.print("Score: ");
+    display.print(score / 10);
     display.display();
-    delay(200);
 
-    // Frame 3
-    display.fillRect(0, 16, 128, 48, SSD1306_BLACK);
-    display.drawBitmap(startX, startY, play_anim_3, 27, 48, SSD1306_WHITE);
-    display.display();
-    delay(200);
+    bool hitObstacle1 = (obstacleX1 < 20 && obstacleX1 > 5 && petY == groundY);
+    bool hitObstacle2 = (obstacleX2 < 20 && obstacleX2 > 5 && petY == groundY);
 
-    // Frame 4
-    display.fillRect(0, 16, 128, 48, SSD1306_BLACK);
-    display.drawBitmap(startX, startY, play_anim_4, 27, 48, SSD1306_WHITE);
-    display.display();
-    delay(200);
-
-    // Frame 5
-    display.fillRect(0, 16, 128, 48, SSD1306_BLACK);
-    display.drawBitmap(startX, startY, play_anim_5, 27, 48, SSD1306_WHITE);
-    display.display();
-    delay(200);
+    if (hitObstacle1 || hitObstacle2) {
+      gameOver = true;
+    }
   }
-  
-  delay(500);
-  cute.play(S_JUMP);
-  delay(500);
+
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setCursor(20, 20);
+  display.print("Game Over");
+  display.setTextSize(1);
+  display.setCursor(10, 45);
+  display.print("Press to exit");
+  display.display();
+
+  while (digitalRead(SELECT) == HIGH);
+  while (digitalRead(SELECT) == LOW); 
 
   changeState("Home");
-  wiggleTail();
 }
 
 // DISPLAY AGE
